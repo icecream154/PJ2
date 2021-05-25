@@ -1,0 +1,3 @@
+/Users/admin/learning/operatingSystem/pj2/PJ2/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/Users/admin/learning/operatingSystem/pj2/PJ2/cmake-build-debug/CMakeFiles/edit_cache.dir
+/Users/admin/learning/operatingSystem/pj2/PJ2/cmake-build-debug/CMakeFiles/PJ2.dir

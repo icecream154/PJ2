@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <string>
 
 // Debug file system -----------------------------------------------------------
 
@@ -17,11 +18,51 @@ void FileSystem::debug(Disk *disk) {
     disk->read(0, block.Data);
 
     printf("SuperBlock:\n");
+    if (block.Super.MagicNumber == MAGIC_NUMBER) {
+        printf("    magic number is valid\n");
+    } else {
+        printf("    magic number is invalid\n");
+    }
     printf("    %u blocks\n"         , block.Super.Blocks);
     printf("    %u inode blocks\n"   , block.Super.InodeBlocks);
     printf("    %u inodes\n"         , block.Super.Inodes);
 
     // Read Inode blocks
+    Block indirect_block;
+    for (unsigned int i = 0; i < block.Super.InodeBlocks; i++) {
+        disk->read(i + 1, block.Data);
+        for (unsigned int j = 0; j < INODES_PER_BLOCK; j++) {
+            if (!block.Inodes[j].Valid) {
+                continue;
+            }
+            std::string direct;
+            std::string indirect;
+            uint32_t indirect_block_number;
+            for (unsigned int k = 0; k < POINTERS_PER_INODE; k++) {
+                if (block.Inodes[j].Direct[k] != 0) {
+                    direct += " ";
+                    direct += std::to_string(block.Inodes[j].Direct[k]);
+                }
+            }
+            indirect_block_number = block.Inodes[i].Indirect;
+            if (indirect_block_number != 0) {
+                disk->read(indirect_block_number, indirect_block.Data);
+                for (unsigned int l = 0; l < POINTERS_PER_BLOCK; l++) {
+                    if (indirect_block.Pointers[l] != 0) {
+                        indirect += " ";
+                        indirect += std::to_string(indirect_block.Pointers[l]);
+                    }
+                }
+            }
+            printf("Inode %u:\n", j);
+            printf("    size: %u bytes\n", block.Inodes[j].Size);
+            printf("    direct blocks:%s\n", direct.c_str());
+            if (indirect.length() > 0) {
+                printf("    indirect block: %u\n", indirect_block_number);
+                printf("    indirect data blocks:%s\n", indirect.c_str());
+            }
+        }
+    }
 }
 
 // Format file system ----------------------------------------------------------
