@@ -223,14 +223,11 @@ ssize_t FileSystem::create() {
 
 bool FileSystem::remove(size_t inumber) {
     Inode node;
-
     // Load inode information
-    if (!load_inode(inumber, &node)) {
+    if (!load_inode(inumber, &node))
         return false;
-    }
-    if (node.Valid == 0) {
+    if (node.Valid == 0)
         return false;
-    }
 
     // Free direct blocks
     for (unsigned int i = 0; i < POINTERS_PER_INODE; i++) {
@@ -239,7 +236,6 @@ bool FileSystem::remove(size_t inumber) {
             node.Direct[i] = 0;
         }
     }
-
     // Free indirect blocks
     if (node.Indirect != 0) {
         free_bitmap[node.Indirect] = 1;
@@ -259,7 +255,6 @@ bool FileSystem::remove(size_t inumber) {
     if (!save_inode(inumber, &node)) {
         return false;
     };
-
     return true;
 }
 
