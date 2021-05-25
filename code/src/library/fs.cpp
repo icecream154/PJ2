@@ -28,8 +28,10 @@ void FileSystem::debug(Disk *disk) {
     printf("    %u inodes\n"         , block.Super.Inodes);
 
     // Read Inode blocks
+    uint32_t inode_blocks_count = block.Super.InodeBlocks;
     Block indirect_block;
-    for (unsigned int i = 0; i < block.Super.InodeBlocks; i++) {
+    // printf("--inode blocks %d in super--\n", block.Super.InodeBlocks);
+    for (unsigned int i = 0; i < inode_blocks_count; i++) {
         disk->read(i + 1, block.Data);
         for (unsigned int j = 0; j < INODES_PER_BLOCK; j++) {
             if (!block.Inodes[j].Valid) {
@@ -62,6 +64,7 @@ void FileSystem::debug(Disk *disk) {
                 printf("    indirect data blocks:%s\n", indirect.c_str());
             }
         }
+        // printf("--inode block %d of %d finished--\n", i+1, block.Super.InodeBlocks);
     }
 }
 

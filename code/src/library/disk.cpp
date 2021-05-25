@@ -58,7 +58,7 @@ void Disk::sanity_check(int blocknum, char *data) {
 
 void Disk::read(int blocknum, char *data) {
     sanity_check(blocknum, data);
-
+    // printf("--block num %d read--\n", blocknum);
     if (lseek(FileDescriptor, blocknum*BLOCK_SIZE, SEEK_SET) < 0) {
     	char what[BUFSIZ];
     	snprintf(what, BUFSIZ, "Unable to lseek %d: %s", blocknum, strerror(errno));
