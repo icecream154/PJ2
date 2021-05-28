@@ -28,8 +28,8 @@ void do_stat(Disk &disk, FileSystem &fs, int args, char *arg1, char *arg2);
 void do_copyin(Disk &disk, FileSystem &fs, int args, char *arg1, char *arg2);
 void do_help(Disk &disk, FileSystem &fs, int args, char *arg1, char *arg2);
 
-bool copyout(FileSystem &fs, size_t inumber, const char *path);
-bool copyin(FileSystem &fs, const char *path, size_t inumber);
+bool copyout(FileSystem &fs, size_t inode_number, const char *path);
+bool copyin(FileSystem &fs, const char *path, size_t inode_number);
 
 // Main execution
 
@@ -160,9 +160,9 @@ void do_create(Disk &disk, FileSystem &fs, int args, char *arg1, char *arg2) {
     	return;
     }
 
-    ssize_t inumber = fs.create();
-    if (inumber >= 0) {
-    	printf("created inode %ld.\n", inumber);
+    ssize_t inode_number = fs.create();
+    if (inode_number >= 0) {
+    	printf("created inode %ld.\n", inode_number);
     } else {
     	printf("create failed!\n");
     }
@@ -174,9 +174,9 @@ void do_remove(Disk &disk, FileSystem &fs, int args, char *arg1, char *arg2) {
     	return;
     }
 
-    ssize_t inumber = atoi(arg1);
-    if (fs.remove(inumber)) {
-    	printf("removed inode %ld.\n", inumber);
+    ssize_t inode_number = atoi(arg1);
+    if (fs.remove(inode_number)) {
+    	printf("removed inode %ld.\n", inode_number);
     } else {
     	printf("remove failed!\n");
     }
@@ -188,10 +188,10 @@ void do_stat(Disk &disk, FileSystem &fs, int args, char *arg1, char *arg2) {
     	return;
     }
 
-    ssize_t inumber = atoi(arg1);
-    ssize_t bytes   = fs.stat(inumber);
+    ssize_t inode_number = atoi(arg1);
+    ssize_t bytes   = fs.stat(inode_number);
     if (bytes >= 0) {
-    	printf("inode %ld has size %ld bytes.\n", inumber, bytes);
+    	printf("inode %ld has size %ld bytes.\n", inode_number, bytes);
     } else {
     	printf("stat failed!\n");
     }
@@ -224,7 +224,7 @@ void do_help(Disk &disk, FileSystem &fs, int args, char *arg1, char *arg2) {
     printf("    exit\n");
 }
 
-bool copyout(FileSystem &fs, size_t inumber, const char *path) {
+bool copyout(FileSystem &fs, size_t inode_number, const char *path) {
     FILE *stream = fopen(path, "w");
     if (stream == nullptr) {
     	fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
@@ -234,7 +234,7 @@ bool copyout(FileSystem &fs, size_t inumber, const char *path) {
     char buffer[4*BUFSIZ] = {0};
     size_t offset = 0;
     while (true) {
-    	ssize_t result = fs.read(inumber, buffer, sizeof(buffer), offset);
+    	ssize_t result = fs.read(inode_number, buffer, sizeof(buffer), offset);
     	if (result <= 0) {
     	    break;
 	}
@@ -247,7 +247,7 @@ bool copyout(FileSystem &fs, size_t inumber, const char *path) {
     return true;
 }
 
-bool copyin(FileSystem &fs, const char *path, size_t inumber) {
+bool copyin(FileSystem &fs, const char *path, size_t inode_number) {
     FILE *stream = fopen(path, "r");
     if (stream == nullptr) {
     	fprintf(stderr, "Unable to open %s: %s\n", path, strerror(errno));
@@ -262,7 +262,7 @@ bool copyin(FileSystem &fs, const char *path, size_t inumber) {
     	    break;
 	}
 
-	ssize_t actual = fs.write(inumber, buffer, result, offset);
+	ssize_t actual = fs.write(inode_number, buffer, result, offset);
 	if (actual < 0) {
 	    fprintf(stderr, "fs.write returned invalid result %ld\n", actual);
 	    break;

@@ -13,32 +13,33 @@
 
 void FileSystem::debug(Disk *disk) {
     Block block;
-
-    // Read Superblock
+    // Read SuperBlock
     disk->read(0, block.Data);
 
     printf("SuperBlock:\n");
-    if (block.Super.MagicNumber == MAGIC_NUMBER) {
+    if (block.Super.MagicNumber == MAGIC_NUMBER)
         printf("    magic number is valid\n");
-    } else {
+    else
         printf("    magic number is invalid\n");
-    }
+
     printf("    %u blocks\n"         , block.Super.Blocks);
     printf("    %u inode blocks\n"   , block.Super.InodeBlocks);
     printf("    %u inodes\n"         , block.Super.Inodes);
 
     // Read Inode blocks
+
+    // save the number of inode blocks
     uint32_t inode_blocks_count = block.Super.InodeBlocks;
     Block indirect_block;
-    // printf("--inode blocks %d in super--\n", block.Super.InodeBlocks);
     for (unsigned int i = 0; i < inode_blocks_count; i++) {
+        // reuse the block on stack
         disk->read(i + 1, block.Data);
         for (unsigned int j = 0; j < INODES_PER_BLOCK; j++) {
-            if (!block.Inodes[j].Valid) {
+            if (!block.Inodes[j].Valid)
                 continue;
-            }
-            std::string direct;
-            std::string indirect;
+
+            std::string direct;     // string to store direct blocks
+            std::string indirect;   // string to store indirect blocks
             uint32_t indirect_block_number;
             for (unsigned int k = 0; k < POINTERS_PER_INODE; k++) {
                 if (block.Inodes[j].Direct[k] != 0) {
@@ -64,7 +65,6 @@ void FileSystem::debug(Disk *disk) {
                 printf("    indirect data blocks:%s\n", indirect.c_str());
             }
         }
-        // printf("--inode block %d of %d finished--\n", i+1, block.Super.InodeBlocks);
     }
 }
 
@@ -72,14 +72,14 @@ void FileSystem::debug(Disk *disk) {
 
 bool FileSystem::format(Disk *disk) {
     // Check if mounted
-    if (disk->mounted()) {
-        return false;
-    }
-    // Write superblock
+    if (disk->mounted()) return false;
+
+    // Write SuperBlock
     Block block;
     memset(block.Data, 0, disk->BLOCK_SIZE);
     block.Super.MagicNumber = MAGIC_NUMBER;
     block.Super.Blocks = disk->size();
+    // set the number of inode blocks
     block.Super.InodeBlocks = (size_t)(((float)disk->size() * 0.1) + 0.5);
     block.Super.Inodes = INODES_PER_BLOCK * block.Super.InodeBlocks;
     disk->write(0, block.Data);
@@ -97,34 +97,29 @@ bool FileSystem::format(Disk *disk) {
 
 bool FileSystem::mount(Disk* disk) {
 
-    // Make usre disk isn't mounted
-    if (disk->mounted()) {
+    // Make user disk isn't mounted
+    if (disk->mounted())
         return false;
-    }
 
-    // Read superblock
+    // Read SuperBlock
     Block block;
     disk->read(0, block.Data);
 
     // make sure inodes counts match
-    if (block.Super.Inodes != block.Super.InodeBlocks * INODES_PER_BLOCK) {
+    if (block.Super.Inodes != block.Super.InodeBlocks * INODES_PER_BLOCK)
         return false;
-    }
 
     // check magic number
-    if (block.Super.MagicNumber != MAGIC_NUMBER) {
+    if (block.Super.MagicNumber != MAGIC_NUMBER)
         return false;
-    }
 
     // make sure there are blocks
-    if (block.Super.Blocks < 0) {
+    if (block.Super.Blocks < 0)
         return false;
-    }
 
     // check inode proportion
-    if (block.Super.InodeBlocks != ceil(.1 * block.Super.Blocks)) {
+    if (block.Super.InodeBlocks != ceil(.1 * block.Super.Blocks))
         return false;
-    }
 
     disk->mount();
 
@@ -134,7 +129,7 @@ bool FileSystem::mount(Disk* disk) {
     num_inodes = block.Super.Inodes;
     this->disk = disk;
 
-    // Allocate free block bitmap
+    // Allocate free block bitmap, 1 indicates true for free blocks
     free_bitmap = std::vector<int>(num_blocks, 1);
 
     //set all blocks to free initially
@@ -142,24 +137,21 @@ bool FileSystem::mount(Disk* disk) {
         free_bitmap[i] = 1;
     }
 
-    // superblock is not free
+    // SuperBlock is not free
     free_bitmap[0] = 0;
-
     // inode blocks are not free
-    for (unsigned int i = 0; i < num_inode_blocks; i++) {
+    for (unsigned int i = 0; i < num_inode_blocks; i++)
         free_bitmap[1 + i] = 0;
-    }
 
-    //TODO: read inodes to determine which blocks are free
     for (uint32_t inode_block = 0; inode_block < num_inode_blocks; inode_block++) {
         Block b;
         disk->read(1 + inode_block, b.Data);
         // reads each inode
         for (uint32_t inode = 0; inode < INODES_PER_BLOCK; inode++) {
             // if it's not valid, it has no blocks
-            if (!b.Inodes[inode].Valid) {
+            if (!b.Inodes[inode].Valid)
                 continue;
-            }
+
             uint32_t n_blocks = (uint32_t)ceil(b.Inodes[inode].Size / (double)disk->BLOCK_SIZE);
             // read all direct blocks
             for (uint32_t pointer = 0; pointer < POINTERS_PER_INODE && pointer < n_blocks; pointer++) {
@@ -198,15 +190,14 @@ ssize_t FileSystem::create() {
                 break;
             }
         }
-        if (ind != -1) {
+        if (ind != -1)
             break;
-        }
     }
 
     // Record inode if found
-    if (ind == -1) {
+    if (ind == -1)
         return -1;
-    }
+
     Inode i;
     i.Valid = true;
     i.Size = 0;
@@ -221,10 +212,10 @@ ssize_t FileSystem::create() {
 
 // Remove inode ----------------------------------------------------------------
 
-bool FileSystem::remove(size_t inumber) {
+bool FileSystem::remove(size_t inode_number) {
     Inode node;
     // Load inode information
-    if (!load_inode(inumber, &node))
+    if (!load_inode(inode_number, &node))
         return false;
     if (node.Valid == 0)
         return false;
@@ -252,7 +243,7 @@ bool FileSystem::remove(size_t inumber) {
     node.Indirect = 0;
     node.Valid = 0;
     node.Size = 0;
-    if (!save_inode(inumber, &node)) {
+    if (!save_inode(inode_number, &node)) {
         return false;
     };
     return true;
@@ -260,32 +251,29 @@ bool FileSystem::remove(size_t inumber) {
 
 // Inode stat ------------------------------------------------------------------
 
-ssize_t FileSystem::stat(size_t inumber) {
+ssize_t FileSystem::stat(size_t inode_number) {
     // Load inode information
     Inode i;
-    if (!load_inode(inumber, &i) || !i.Valid) {
+    if (!load_inode(inode_number, &i) || !i.Valid) {
         return -1;
     }
-
     return i.Size;
 }
 
 // Read from inode -------------------------------------------------------------
 
-ssize_t FileSystem::read(size_t inumber, char* data, size_t length, size_t offset) {
+ssize_t FileSystem::read(size_t inode_number, char* data, size_t length, size_t offset) {
     // Load inode information
     Inode inode;
-    if (!load_inode(inumber, &inode) || offset > inode.Size) {
+    if (!load_inode(inode_number, &inode) || offset > inode.Size) {
         return -1;
     }
 
     // Adjust length
     length = std::min(length, inode.Size - offset);
-
     uint32_t start_block = offset / disk->BLOCK_SIZE;
 
     // Read block and copy to data; use memcpy
-
     // Get indirect block number if it will need it
     Block indirect;
     if ((offset + length) / disk->BLOCK_SIZE > POINTERS_PER_INODE) {
@@ -298,20 +286,17 @@ ssize_t FileSystem::read(size_t inumber, char* data, size_t length, size_t offse
 
     size_t read = 0;
     for (uint32_t block_num = start_block; read < length; block_num++) {
-
         // figure out which block we're reading
         size_t block_to_read;
         if (block_num < POINTERS_PER_INODE) {
             block_to_read = inode.Direct[block_num];
-        }
-        else {
+        } else {
             block_to_read = indirect.Pointers[block_num - POINTERS_PER_INODE];
         }
 
         //make sure block is allocated
-        if (block_to_read == 0) {
+        if (block_to_read == 0)
             return -1;
-        }
 
         //get the block -- from either direct or indirect
         Block b;
@@ -324,8 +309,7 @@ ssize_t FileSystem::read(size_t inumber, char* data, size_t length, size_t offse
         if (read == 0) {
             read_offset = offset % disk->BLOCK_SIZE;
             read_length = std::min(disk->BLOCK_SIZE - read_offset, length);
-        }
-        else {
+        } else {
             // otherwise, start from the beginning, and read
             // either the whole block or the rest of the request
             read_offset = 0;
@@ -347,28 +331,24 @@ ssize_t FileSystem::allocate_free_block() {
             break;
         }
     }
-
     // need to zero data block if we're allocating one
     if (block != -1) {
         char data[disk->BLOCK_SIZE];
         memset(data, 0, disk->BLOCK_SIZE);
         disk->write(block, (char*)data);
     }
-
     return block;
 }
 
 // Write to inode --------------------------------------------------------------
 
-ssize_t FileSystem::write(size_t inumber, char* data, size_t length, size_t offset) {
+ssize_t FileSystem::write(size_t inode_number, char* data, size_t length, size_t offset) {
     // Load inode
     Inode inode;
-    if (!load_inode(inumber, &inode) || offset > inode.Size) {
+    if (!load_inode(inode_number, &inode) || offset > inode.Size)
         return -1;
-    }
 
     size_t MAX_FILE_SIZE = disk->BLOCK_SIZE * (POINTERS_PER_INODE * POINTERS_PER_BLOCK);
-
     // Adjust length
     length = std::min(length, MAX_FILE_SIZE - offset);
 
@@ -381,7 +361,9 @@ ssize_t FileSystem::write(size_t inumber, char* data, size_t length, size_t offs
 
     // Write block and copy data
     size_t written = 0;
-    for (uint32_t block_num = start_block; written < length && block_num < POINTERS_PER_INODE + POINTERS_PER_BLOCK; block_num++) {
+    for (uint32_t block_num = start_block;
+        written < length && block_num < POINTERS_PER_INODE + POINTERS_PER_BLOCK;
+        block_num++) {
 
         // figure out which block we're reading
         size_t block_to_write;
@@ -389,9 +371,9 @@ ssize_t FileSystem::write(size_t inumber, char* data, size_t length, size_t offs
             // Allocate block if necessary
             if (inode.Direct[block_num] == 0) {
                 ssize_t allocated_block = allocate_free_block();
-                if (allocated_block == -1) {
+                if (allocated_block == -1)
                     break;
-                }
+
                 inode.Direct[block_num] = allocated_block;
                 modified_inode = true;
             }
@@ -401,9 +383,9 @@ ssize_t FileSystem::write(size_t inumber, char* data, size_t length, size_t offs
             // Allocate indirect block if necessary
             if (inode.Indirect == 0) {
                 ssize_t allocated_block = allocate_free_block();
-                if (allocated_block == -1) {
+                if (allocated_block == -1)
                     return written;
-                }
+
                 inode.Indirect = allocated_block;
                 modified_indirect = true;
             }
@@ -417,9 +399,9 @@ ssize_t FileSystem::write(size_t inumber, char* data, size_t length, size_t offs
             // Allocate block if necessary
             if (indirect.Pointers[block_num - POINTERS_PER_INODE] == 0) {
                 ssize_t allocated_block = allocate_free_block();
-                if (allocated_block == -1) {
+                if (allocated_block == -1)
                     break;
-                }
+
                 indirect.Pointers[block_num - POINTERS_PER_INODE] = allocated_block;
                 modified_indirect = true;
             }
@@ -464,49 +446,39 @@ ssize_t FileSystem::write(size_t inumber, char* data, size_t length, size_t offs
     }
 
     // save inode and indirect if necessary
-    if (modified_inode) {
-        save_inode(inumber, &inode);
-    }
+    if (modified_inode)
+        save_inode(inode_number, &inode);
 
-    if (modified_indirect) {
+    if (modified_indirect)
         disk->write(inode.Indirect, indirect.Data);
-    }
 
     return written;
 }
 
 // Load inode --------------------------------------------------------------
-bool FileSystem::load_inode(size_t inumber, Inode* node) {
-    size_t block_number = 1 + (inumber / INODES_PER_BLOCK);
-    size_t inode_offset = inumber % INODES_PER_BLOCK;
-
-    if (inumber >= num_inodes) {
+bool FileSystem::load_inode(size_t inode_number, Inode* node) {
+    size_t block_number = 1 + (inode_number / INODES_PER_BLOCK);
+    size_t inode_offset = inode_number % INODES_PER_BLOCK;
+    if (inode_number >= num_inodes) 
         return false;
-    }
 
     Block block;
     disk->read(block_number, block.Data);
-
     *node = block.Inodes[inode_offset];
-
     return true;
 }
 
 
 // Save inode --------------------------------------------------------------
-bool FileSystem::save_inode(size_t inumber, Inode* node) {
-
-    size_t block_number = 1 + inumber / INODES_PER_BLOCK;
-    size_t inode_offset = inumber % INODES_PER_BLOCK;
-
-    if (inumber >= num_inodes) {
+bool FileSystem::save_inode(size_t inode_number, Inode* node) {
+    size_t block_number = 1 + inode_number / INODES_PER_BLOCK;
+    size_t inode_offset = inode_number % INODES_PER_BLOCK;
+    if (inode_number >= num_inodes)
         return false;
-    }
 
     Block block;
     disk->read(block_number, block.Data);
     block.Inodes[inode_offset] = *node;
     disk->write(block_number, block.Data);
-
     return true;
 }
